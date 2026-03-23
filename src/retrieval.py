@@ -1,7 +1,13 @@
+# Note: EnsembleRetriever and ContextualCompressionRetriever are in langchain_classic
+# due to langchain 1.x restructuring
+
+import os
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_cohere import CohereRerank
 
 
 def load_vectorstore(save_path: str = "vectorstore") -> FAISS:
@@ -19,14 +25,14 @@ def get_retriever(save_path: str = "vectorstore"):
     # Dense retriever
     faiss_retriever = vector_store.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 4}
+        search_kwargs={"k": 6}
     )
 
     # Sparse retriever
     docs = list(vector_store.docstore._dict.values())
     #this pulls the document chunks out of FAISS so that BM25 can index them
     bm25_retriever = BM25Retriever.from_documents(docs)
-    bm25_retriever.k = 4
+    bm25_retriever.k = 6
 
     # Combine both
     ensemble_retriever = EnsembleRetriever(
@@ -34,7 +40,16 @@ def get_retriever(save_path: str = "vectorstore"):
         weights=[0.5, 0.5]
     )
 
-    return ensemble_retriever
+    # Reranker
+    reranker = CohereRerank(
+        model="rerank-english-v3.0",
+        top_n=3
+    )
+
+    return ContextualCompressionRetriever(
+        base_compressor=reranker,
+        base_retriever=ensemble_retriever
+    )
 
 
 # def compare_retrievers(question: str, save_path: str = "vectorstore"):
