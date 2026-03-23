@@ -6,13 +6,14 @@ import os
 
 load_dotenv()
 
+#only for debugging we're accessing this from app.py
 VIDEO_ID = "Gfr50f6ZBvo"
-VECTORSTORE_PATH = "vectorstore"
+VECTORSTORE_PATH = f"vectorstore/{VIDEO_ID}"
 
 
 def index(video_id: str = VIDEO_ID):
     print(f"Indexing video: {video_id}")
-    build_vectorstore(video_id, save_path=VECTORSTORE_PATH)
+    build_vectorstore(video_id, save_path=f"vectorstore/{video_id}")
     print("Indexing complete.")
 
 
@@ -28,5 +29,4 @@ if __name__ == "__main__":
     # index()
 
     # Ask questions
-    # ask("Who is Demis Hassabis?")
     ask("What did demis say about dangers of AGI?")
