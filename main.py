@@ -28,5 +28,5 @@ if __name__ == "__main__":
     # index()
 
     # Ask questions
-    ask("Who is Demis Hassabis?")
-    ask("Was nuclear fusion discussed in this video?")
+    # ask("Who is Demis Hassabis?")
+    ask("What did demis say about dangers of AGI?")
