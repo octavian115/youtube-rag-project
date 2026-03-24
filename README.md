@@ -71,7 +71,8 @@ python main.py
 ## Limitations
 
 - Only supports YouTube videos with English transcripts
-- YouTube may block transcript requests from cloud IPs — this is a known limitation of the `youtube-transcript-api` library
+- Due to YouTube IP blocking on cloud servers, new videos must be indexed locally 
+  using `python main.py` and pushed to Pinecone before they can be queried on the live app
 
 ## Tech Stack
 
