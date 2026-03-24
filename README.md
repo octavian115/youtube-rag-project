@@ -1,31 +1,32 @@
 # YouTube RAG Pipeline
 
-A retrieval-augmented generation (RAG) pipeline that answers questions about a YouTube video using its transcript. Paste a YouTube URL, and ask questions about the video in a chat interface.
-Note: Currently supports YouTube videos with English transcripts only.
+A retrieval-augmented generation (RAG) pipeline that answers questions about a YouTube video using its transcript. Paste a YouTube URL and ask questions in a chat interface.
 
-Built with LangChain, FAISS, Cohere, and OpenAI.
+## Live Demo
+[youtube-rag-project.onrender.com](https://youtube-rag-project-n70z.onrender.com)
+
+> The app may take 30-60 seconds to wake up on first visit due to Render's free tier cold starts.
 
 ## How it works
 
 1. Fetches the transcript of a YouTube video
-2. Splits it into chunks and generates embeddings
-3. Stores the embeddings in a FAISS vector store (persisted to disk per video)
-4. On each query, retrieves the most relevant chunks using hybrid search (FAISS + BM25)
+2. Splits it into chunks and generates embeddings using OpenAI
+3. Stores the embeddings in Pinecone (cloud vector database)
+4. On each query, retrieves the most relevant chunks using hybrid search (Pinecone dense + BM25 keyword)
 5. Reranks the retrieved chunks using Cohere Rerank
-6. Passes the top chunks to an LLM to generate an answer
+6. Passes the top chunks to GPT-4o-mini to generate a grounded answer
 
 ## Project Structure
 ```
 youtube-rag/
 ├── src/
-│   ├── indexing.py      # Transcript fetching, chunking, embedding, saving
-│   ├── retrieval.py     # Hybrid search (FAISS + BM25) and Cohere reranking
+│   ├── indexing.py      # Transcript fetching, chunking, embedding, storing in Pinecone
+│   ├── retrieval.py     # Hybrid search (dense + BM25) and Cohere reranking
 │   └── chain.py         # LCEL chain assembly
-├── data/                # Local data files
-├── vectorstore/         # Persisted FAISS indexes (one folder per video)
 ├── notebooks/           # Experimentation notebooks
 ├── app.py               # Streamlit UI entry point
 ├── main.py              # CLI entry point for development and testing
+├── migrate_to_pinecone.py  # One-time migration script from FAISS to Pinecone
 └── pyproject.toml       # Dependencies
 ```
 
@@ -44,8 +45,9 @@ cp .env.example .env
 
 ## Environment Variables
 ```
-OPENAI_API_KEY=        # Required for embeddings and LLM
-COHERE_API_KEY=        # Required for reranking
+OPENAI_API_KEY=        # Embeddings (text-embedding-3-small) and LLM (gpt-4o-mini)
+COHERE_API_KEY=        # Reranking (rerank-english-v3.0)
+PINECONE_API_KEY=      # Vector store
 ```
 
 ## Usage
@@ -56,12 +58,12 @@ streamlit run app.py
 ```
 
 1. Paste a YouTube URL into the input field
-2. Click "Load Video" — the transcript will be fetched, chunked, and indexed
+2. Click "Load Video" — the transcript is fetched, chunked, embedded, and stored in Pinecone
 3. Ask questions about the video in the chat interface
 
-If you load the same video again, it loads from the existing index without re-embedding.
+Previously indexed videos load instantly from Pinecone without re-embedding.
 
-**Run from the CLI (for testing):**
+**Run from the CLI (for development and testing):**
 ```bash
 python main.py
 ```
@@ -69,13 +71,12 @@ python main.py
 ## Limitations
 
 - Only supports YouTube videos with English transcripts
-- Vector store is persisted to disk — not suitable for multi-user deployment as-is
-- Switching to a cloud vector database (e.g. Pinecone) is required for production deployment
+- YouTube may block transcript requests from cloud IPs — this is a known limitation of the `youtube-transcript-api` library
 
 ## Tech Stack
 
 - [LangChain](https://www.langchain.com/) — LLM framework and LCEL chain
-- [FAISS](https://github.com/facebookresearch/faiss) — vector store
+- [Pinecone](https://www.pinecone.io/) — cloud vector store
 - [BM25](https://github.com/dorianbrown/rank_bm25) — keyword search
 - [Cohere Rerank](https://cohere.com/) — reranking
 - [OpenAI](https://openai.com/) — embeddings and LLM
