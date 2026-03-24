@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from src.indexing import build_vectorstore_from_transcript, build_vectorstore
 from src.chain import build_chain
 from pinecone import Pinecone
+from src.utils import extract_video_id
 
 load_dotenv()
 
@@ -11,15 +12,15 @@ st.title("YouTube Video Q&A")
 st.caption("Ask questions about any YouTube video with an English transcript")
 
 
-def extract_video_id(url: str) -> str:
-    url = url.strip()
-    if "v=" in url:
-        return url.split("v=")[1].split("&")[0]
-    elif "youtu.be/" in url:
-        return url.split("youtu.be/")[1].split("?")[0]
-    elif url.isalnum() and len(url) == 11:
-        return url
-    return None
+# def extract_video_id(url: str) -> str:
+#     url = url.strip()
+#     if "v=" in url:
+#         return url.split("v=")[1].split("&")[0]
+#     elif "youtu.be/" in url:
+#         return url.split("youtu.be/")[1].split("?")[0]
+#     elif url.isalnum() and len(url) == 11:
+#         return url
+#     return None
 
 
 def is_indexed(video_id: str) -> bool:
