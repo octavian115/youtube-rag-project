@@ -53,3 +53,35 @@ def build_vectorstore(video_id: str, index_name: str = "youtube-rag") -> Pinecon
         return vector_store
     except Exception as e:
         raise RuntimeError(f"Failed to store embeddings in Pinecone: {e}")
+    
+
+def build_vectorstore_from_transcript(transcript: str, video_id: str, index_name: str = "youtube-rag") -> PineconeVectorStore:
+    if not transcript or not transcript.strip():
+        raise ValueError("Transcript cannot be empty")
+
+    # Split
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
+    chunks = splitter.create_documents(
+        [transcript],
+        metadatas=[{"video_id": video_id}]
+    )
+
+    if not chunks:
+        raise ValueError("No chunks generated from transcript")
+
+    # Embed and store
+    try:
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        vector_store = PineconeVectorStore.from_documents(
+            chunks,
+            embeddings,
+            index_name=index_name,
+            namespace=video_id
+        )
+        print(f"Transcript indexed to Pinecone namespace: {video_id}")
+        return vector_store
+    except Exception as e:
+        raise RuntimeError(f"Failed to store transcript in Pinecone: {e}")
