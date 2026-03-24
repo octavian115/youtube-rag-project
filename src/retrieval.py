@@ -11,45 +11,55 @@ from langchain_cohere import CohereRerank
 
 
 def load_vectorstore(save_path: str = "vectorstore") -> FAISS:
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    return FAISS.load_local(
-        save_path,
-        embeddings,
-        allow_dangerous_deserialization=True
-    )
+    if not os.path.exists(save_path):
+        raise FileNotFoundError(f"Vectorstore not found at path: {save_path}")
+
+    try:
+        embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        return FAISS.load_local(
+            save_path,
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to load vectorstore: {e}")
 
 
 def get_retriever(save_path: str = "vectorstore"):
     vector_store = load_vectorstore(save_path)
 
-    # Dense retriever
-    faiss_retriever = vector_store.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": 6}
-    )
+    try:
+        # Dense retriever
+        faiss_retriever = vector_store.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 6}
+        )
 
-    # Sparse retriever
-    docs = list(vector_store.docstore._dict.values())
-    #this pulls the document chunks out of FAISS so that BM25 can index them
-    bm25_retriever = BM25Retriever.from_documents(docs)
-    bm25_retriever.k = 6
+        # Sparse retriever
+        docs = list(vector_store.docstore._dict.values())
+        if not docs:
+            raise ValueError("Vectorstore is empty")
+        bm25_retriever = BM25Retriever.from_documents(docs)
+        bm25_retriever.k = 6
 
-    # Combine both
-    ensemble_retriever = EnsembleRetriever(
-        retrievers=[faiss_retriever, bm25_retriever],
-        weights=[0.5, 0.5]
-    )
+        # Hybrid retriever
+        ensemble_retriever = EnsembleRetriever(
+            retrievers=[faiss_retriever, bm25_retriever],
+            weights=[0.5, 0.5]
+        )
 
-    # Reranker
-    reranker = CohereRerank(
-        model="rerank-english-v3.0",
-        top_n=3
-    )
+        # Reranker
+        reranker = CohereRerank(
+            model="rerank-english-v3.0",
+            top_n=3
+        )
 
-    return ContextualCompressionRetriever(
-        base_compressor=reranker,
-        base_retriever=ensemble_retriever
-    )
+        return ContextualCompressionRetriever(
+            base_compressor=reranker,
+            base_retriever=ensemble_retriever
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to build retriever: {e}")
 
 
 # def compare_retrievers(question: str, save_path: str = "vectorstore"):

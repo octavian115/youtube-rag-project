@@ -8,22 +8,25 @@ load_dotenv()
 
 st.set_page_config(page_title="YouTube RAG", layout="centered")
 st.title("YouTube Video Q&A")
-st.caption("Ask questions about any YouTube video")
+st.caption("Ask questions about any YouTube video with an English transcript")
 
 
 def extract_video_id(url: str) -> str:
+    url = url.strip()
     if "v=" in url:
         return url.split("v=")[1].split("&")[0]
     elif "youtu.be/" in url:
         return url.split("youtu.be/")[1].split("?")[0]
-    return url  # assume raw video id was passed
+    elif url.isalnum() and len(url) == 11:
+        return url  # raw video ID
+    return None
 
 
 def is_indexed(video_id: str) -> bool:
     return os.path.exists(f"vectorstore/{video_id}")
 
 
-# Stage 1: Video Loading 
+# --- Stage 1: Video Loading ---
 url = st.text_input("Paste a YouTube URL")
 
 if st.button("Load Video"):
@@ -31,29 +34,36 @@ if st.button("Load Video"):
         st.warning("Please enter a YouTube URL.")
     else:
         video_id = extract_video_id(url)
-        st.session_state.video_id = video_id
 
-        if is_indexed(video_id):
-            st.success("Video already indexed. Ready to chat.")
+        if not video_id:
+            st.error("Invalid YouTube URL. Please paste a valid video link.")
         else:
-            with st.spinner("Indexing video..."):
-                try:
-                    build_vectorstore(video_id, save_path=f"vectorstore/{video_id}")
-                    st.success("Video indexed. Ready to chat.")
-                except Exception as e:
-                    st.error(f"Failed to index video: {e}")
+            st.session_state.video_id = video_id
+            st.session_state.messages = [] # to clear chat history on new video
 
-# Stage 2: Chat
+            if is_indexed(video_id):
+                st.success("Video already indexed. Ready to chat.")
+            else:
+                with st.spinner("Fetching transcript and indexing video..."):
+                    try:
+                        build_vectorstore(video_id, save_path=f"vectorstore/{video_id}")
+                        st.success("Video indexed. Ready to chat.")
+                    except ValueError as e:
+                        st.error(f"{e}")
+                        st.session_state.pop("video_id", None)
+                    except RuntimeError as e:
+                        st.error(f"Something went wrong: {e}")
+                        st.session_state.pop("video_id", None)
+
+# --- Stage 2: Chat ---
 if "video_id" in st.session_state:
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display chat history
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Chat input
     if question := st.chat_input("Ask a question about the video"):
         st.session_state.messages.append({"role": "user", "content": question})
 
@@ -61,7 +71,11 @@ if "video_id" in st.session_state:
             st.markdown(question)
 
         with st.chat_message("assistant"):
-            chain = build_chain(save_path=f"vectorstore/{st.session_state.video_id}")
-            response = st.write_stream(chain.stream(question))
-
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            try:
+                chain = build_chain(save_path=f"vectorstore/{st.session_state.video_id}")
+                response = st.write_stream(chain.stream(question))
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            except FileNotFoundError as e:
+                st.error(f"{e}")
+            except RuntimeError as e:
+                st.error(f"Something went wrong while answering: {e}")
