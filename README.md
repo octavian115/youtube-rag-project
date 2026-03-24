@@ -9,10 +9,10 @@ A retrieval-augmented generation (RAG) pipeline that answers questions about a Y
 
 ## How it works
 
-1. Fetches the transcript of a YouTube video
-2. Splits it into chunks and generates embeddings using OpenAI
-3. Stores the embeddings in Pinecone (cloud vector database)
-4. On each query, retrieves the most relevant chunks using hybrid search (Pinecone dense + BM25 keyword)
+1. Fetches the transcript of a YouTube video automatically, or accepts a manually pasted transcript as fallback
+2. Splits the transcript into chunks and generates embeddings using OpenAI
+3. Stores the embeddings in Pinecone (cloud vector database) under a namespace per video
+4. On each query, retrieves the most relevant chunks using hybrid search (dense semantic + BM25 keyword)
 5. Reranks the retrieved chunks using Cohere Rerank
 6. Passes the top chunks to GPT-4o-mini to generate a grounded answer
 
@@ -22,7 +22,8 @@ youtube-rag/
 ├── src/
 │   ├── indexing.py      # Transcript fetching, chunking, embedding, storing in Pinecone
 │   ├── retrieval.py     # Hybrid search (dense + BM25) and Cohere reranking
-│   └── chain.py         # LCEL chain assembly
+│   ├── chain.py         # LCEL chain assembly
+│   └── utils.py         # Shared utilities (e.g. YouTube URL parsing)
 ├── notebooks/           # Experimentation notebooks
 ├── app.py               # Streamlit UI entry point
 ├── main.py              # CLI entry point for development and testing
@@ -59,7 +60,8 @@ streamlit run app.py
 
 1. Paste a YouTube URL into the input field
 2. Click "Load Video" — the transcript is fetched, chunked, embedded, and stored in Pinecone
-3. Ask questions about the video in the chat interface
+3. If auto-fetch fails (e.g. on cloud deployments), paste the transcript manually using YouTube's transcript panel
+4. Ask questions about the video in the chat interface
 
 Previously indexed videos load instantly from Pinecone without re-embedding.
 
@@ -71,8 +73,7 @@ python main.py
 ## Limitations
 
 - Only supports YouTube videos with English transcripts
-- Due to YouTube IP blocking on cloud servers, new videos must be indexed locally 
-  using `python main.py` and pushed to Pinecone before they can be queried on the live app
+- YouTube blocks transcript requests from cloud server IPs — on the live deployment, use the manual transcript fallback or index videos locally via `python main.py` first
 
 ## Tech Stack
 
