@@ -4,6 +4,8 @@ from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
 
 load_dotenv()
 
@@ -18,7 +20,7 @@ def fetch_transcript(video_id: str) -> str:
         raise RuntimeError(f"Unexpected error fetching transcript: {e}")
 
 
-def build_vectorstore(video_id: str, save_path: str = "vectorstore") -> FAISS:
+def build_vectorstore(video_id: str, index_name: str = "youtube-rag") -> PineconeVectorStore:
     if not video_id or not video_id.strip():
         raise ValueError("Video ID cannot be empty")
 
@@ -41,17 +43,13 @@ def build_vectorstore(video_id: str, save_path: str = "vectorstore") -> FAISS:
     # Step 3 - Embed and store
     try:
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        vector_store = FAISS.from_documents(chunks, embeddings)
+        vector_store = PineconeVectorStore.from_documents(
+            chunks,
+            embeddings,
+            index_name=index_name,
+            namespace=video_id
+        )
+        print(f"Vectorstore saved to Pinecone index: {index_name}, namespace: {video_id}")
+        return vector_store
     except Exception as e:
-        raise RuntimeError(f"Failed to generate embeddings: {e}")
-
-
-    # Step 4 - Persist
-    try:
-        os.makedirs(save_path, exist_ok=True)
-        vector_store.save_local(save_path)
-        print(f"Vectorstore saved to {save_path}")
-    except Exception as e:
-        raise RuntimeError(f"Failed to save vectorstore: {e}")
-
-    return vector_store
+        raise RuntimeError(f"Failed to store embeddings in Pinecone: {e}")

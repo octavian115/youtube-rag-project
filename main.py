@@ -13,12 +13,12 @@ VECTORSTORE_PATH = f"vectorstore/{VIDEO_ID}"
 
 def index(video_id: str = VIDEO_ID):
     print(f"Indexing video: {video_id}")
-    build_vectorstore(video_id, save_path=f"vectorstore/{video_id}")
+    build_vectorstore(video_id)
     print("Indexing complete.")
 
 
 def ask(question: str):
-    chain = build_chain(save_path=VECTORSTORE_PATH)
+    chain = build_chain(video_id=VIDEO_ID)
     answer = chain.invoke(question)
     print(f"\nQ: {question}")
     print(f"A: {answer}")
@@ -26,7 +26,7 @@ def ask(question: str):
 
 if __name__ == "__main__":
     # Run indexing only once, comment out after first run
-    # index()
+    index()
 
     # Ask questions
     ask("What did demis say about dangers of AGI?")

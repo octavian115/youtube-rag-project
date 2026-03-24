@@ -3,6 +3,7 @@
 
 import os
 from langchain_community.vectorstores import FAISS
+from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
@@ -10,23 +11,20 @@ from langchain_classic.retrievers import ContextualCompressionRetriever
 from langchain_cohere import CohereRerank
 
 
-def load_vectorstore(save_path: str = "vectorstore") -> FAISS:
-    if not os.path.exists(save_path):
-        raise FileNotFoundError(f"Vectorstore not found at path: {save_path}")
-
+def load_vectorstore(video_id: str, index_name: str = "youtube-rag") -> PineconeVectorStore:
     try:
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        return FAISS.load_local(
-            save_path,
-            embeddings,
-            allow_dangerous_deserialization=True
+        return PineconeVectorStore(
+            index_name=index_name,
+            embedding=embeddings,
+            namespace=video_id
         )
     except Exception as e:
         raise RuntimeError(f"Failed to load vectorstore: {e}")
 
 
-def get_retriever(save_path: str = "vectorstore"):
-    vector_store = load_vectorstore(save_path)
+def get_retriever(video_id: str, index_name: str = "youtube-rag"):
+    vector_store = load_vectorstore(video_id, index_name)
 
     try:
         # Dense retriever
@@ -35,10 +33,9 @@ def get_retriever(save_path: str = "vectorstore"):
             search_kwargs={"k": 6}
         )
 
-        # Sparse retriever
-        docs = list(vector_store.docstore._dict.values())
-        if not docs:
-            raise ValueError("Vectorstore is empty")
+        # Sparse retriever - fetch docs from Pinecone for BM25
+        docs = vector_store.similarity_search("", k=100)
+        #fetch up to 100 chunks for BM25 to index locally
         bm25_retriever = BM25Retriever.from_documents(docs)
         bm25_retriever.k = 6
 
@@ -47,19 +44,20 @@ def get_retriever(save_path: str = "vectorstore"):
             retrievers=[faiss_retriever, bm25_retriever],
             weights=[0.5, 0.5]
         )
+    except Exception as e:
+        raise RuntimeError(f"Failed to set up retriever: {e}")
 
-        # Reranker
+    try:
         reranker = CohereRerank(
             model="rerank-english-v3.0",
             top_n=3
         )
-
         return ContextualCompressionRetriever(
             base_compressor=reranker,
             base_retriever=ensemble_retriever
         )
     except Exception as e:
-        raise RuntimeError(f"Failed to build retriever: {e}")
+        raise RuntimeError(f"Failed to set up reranker: {e}")
 
 
 # def compare_retrievers(question: str, save_path: str = "vectorstore"):

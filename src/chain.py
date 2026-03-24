@@ -9,8 +9,8 @@ def format_docs(retrieved_docs):
     return "\n\n".join(doc.page_content for doc in retrieved_docs)
 
 
-def build_chain(save_path: str = "vectorstore"):
-    retriever = get_retriever(save_path)
+def build_chain(video_id: str,  index_name: str = "youtube-rag"):
+    retriever = get_retriever(video_id, index_name)
 
     prompt = PromptTemplate(
         template="""
