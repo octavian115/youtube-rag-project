@@ -13,16 +13,20 @@ def build_chain(video_id: str,  index_name: str = "youtube-rag"):
     retriever = get_retriever(video_id, index_name)
 
     prompt = PromptTemplate(
-        template="""
-        You are a helpful assistant.
-        Answer ONLY from the provided transcript context.
-        If the context is insufficient, just say you don't know.
+    template="""
+    You are a helpful assistant that answers questions about a YouTube video based on its transcript.
+    
+    Use the provided transcript context to answer the question as thoroughly as possible.
+    If the context only partially addresses the question, answer based on what is available and mention that the transcript may not cover it fully.
+    Only say you don't know if the context contains absolutely no relevant information.
 
-        Context: {context}
-        Question: {question}
-        """,
-        input_variables=["context", "question"]
-    )
+    Context: {context}
+    Question: {question}
+    
+    Answer:
+    """,
+    input_variables=["context", "question"]
+)
 
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
     parser = StrOutputParser()

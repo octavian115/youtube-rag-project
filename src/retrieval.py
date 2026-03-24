@@ -50,7 +50,7 @@ def get_retriever(video_id: str, index_name: str = "youtube-rag"):
     try:
         reranker = CohereRerank(
             model="rerank-english-v3.0",
-            top_n=3
+            top_n=4
         )
         return ContextualCompressionRetriever(
             base_compressor=reranker,
